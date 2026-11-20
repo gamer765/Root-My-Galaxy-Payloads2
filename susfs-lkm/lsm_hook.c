@@ -66,6 +66,8 @@
  */
 
 #include <linux/errno.h>
+#include <linux/delay.h>
+#include <linux/rcupdate.h>
 #include <linux/kernel.h>
 #include <linux/lsm_hooks.h>
 #include <linux/kprobes.h>
@@ -390,6 +392,45 @@ int ksu_lsm_hook(struct ksu_lsm_hook *hook)
 void ksu_lsm_unhook(struct ksu_lsm_hook *hook)
 {
 	ksu_unregister_lsm_hook(hook);
+}
+
+/* The Samsung overlay replaces upstream's lsm_hook.c, so it must preserve these
+ * two cross-file entry points used by susfs_main.c and other SUSFS layers.
+ */
+static void (*susfs_sync_rcu_tasks_fn)(void);
+static bool susfs_sync_rcu_tasks_looked_up;
+
+static __nocfi void susfs_call_rcu_tasks(void (*fn)(void))
+{
+	fn();
+}
+
+void susfs_wait_for_readers(void)
+{
+	if (!susfs_sync_rcu_tasks_looked_up) {
+		susfs_sync_rcu_tasks_fn =
+			(void *)find_kernel_symbol_exact("synchronize_rcu_tasks");
+		if (susfs_sync_rcu_tasks_fn)
+			susfs_sync_rcu_tasks_looked_up = true;
+		else
+			pr_warn("lsm_hook: synchronize_rcu_tasks not found, using a delay\\n");
+	}
+
+	/* LSM call sites do not all use RCU read-side sections. */
+	synchronize_rcu();
+	if (susfs_sync_rcu_tasks_fn)
+		susfs_call_rcu_tasks(susfs_sync_rcu_tasks_fn);
+	else
+		msleep(50);
+}
+
+bool ksu_lsm_hook_ready(void)
+{
+	/* This overlay probes the target functions directly; it does not need the
+	 * security_hook_heads table checked by upstream's write-based installer. */
+	return IS_ENABLED(CONFIG_KPROBES) &&
+		find_kernel_symbol_exact("register_kprobe") &&
+		find_kernel_symbol_exact("unregister_kprobe");
 }
 
 void ksu_lsm_hook_init(void)
