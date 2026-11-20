@@ -413,7 +413,7 @@ void susfs_wait_for_readers(void)
 		if (susfs_sync_rcu_tasks_fn)
 			susfs_sync_rcu_tasks_looked_up = true;
 		else
-			pr_warn("lsm_hook: synchronize_rcu_tasks not found, using a delay\\n");
+			pr_warn("lsm_hook: synchronize_rcu_tasks not found, using a delay\n");
 	}
 
 	/* LSM call sites do not all use RCU read-side sections. */
