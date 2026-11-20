@@ -132,8 +132,9 @@ jobs:
         # Read from the inputs rather than through `env`, because a matrix is evaluated before the
         # environment exists. The eight KMIs are the ones this project builds for: a device in any of
         # them is a device this project roots.
-        kmi: ${{ fromJSON(inputs.kmi || '["android12-5.10","android13-5.10","android13-5.15","android14-5.15","android14-6.1","android15-6.6","android16-6.12","android17-6.18"]') }}
-        variant: ${{ fromJSON(inputs.variants || '["stable","preview","legacy","samsung"]') }}
+        # This isolated diagnostic branch builds only the S24 Ultra's Samsung 6.1 KMI.
+        kmi: ${{ github.ref == 'refs/heads/diag/susfs-no-syscall-table-e3q' && fromJSON('["android14-6.1"]') || fromJSON(inputs.kmi || '["android12-5.10","android13-5.10","android13-5.15","android14-5.15","android14-6.1","android15-6.6","android16-6.12","android17-6.18"]') }}
+        variant: ${{ github.ref == 'refs/heads/diag/susfs-no-syscall-table-e3q' && fromJSON('["samsung"]') || fromJSON(inputs.variants || '["stable","preview","legacy","samsung"]') }}
         # The pairs the two older lines cannot build, and this is measured rather than assumed: a run
         # that built them failed with ten errors in `sus_mount.c` against the 6.12 tree (`struct
         # mnt_namespace` has no `ns_lock` and no `list` there, and `MNT_CURSOR` is gone) - the same
@@ -298,6 +299,42 @@ jobs:
           grep -q 'susfs_kp_stat\.o' "$tp/Makefile" || {
             echo "::error::the Makefile does not build susfs_kp_stat.o"; exit 1; }
           echo "kp_stat overlay: in place, post-processing on kretprobes"
+
+      - name: Disable all syscall-table hook layers for the diagnostic build
+        if: github.ref == 'refs/heads/diag/susfs-no-syscall-table-e3q' && matrix.variant == 'samsung' && matrix.kmi == 'android14-6.1'
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("susfs-src/kernel/susfs_main.c")
+          source = path.read_text()
+          banner = '    SUSFS_LOGI("init v%s\\n", SUSFS_LKM_VERSION);'
+          if source.count(banner) != 1:
+              raise SystemExit("expected one SUSFS init banner; refusing to patch")
+          source = source.replace(
+              banner,
+              '    SUSFS_LOGI("init v%s-diag-no-systable\\n", SUSFS_LKM_VERSION);',
+              1,
+          )
+          call = "        ret = susfs_load_layer(susfs_load_plan[i].id, susfs_load_plan[i].fatal);"
+          if source.count(call) != 1:
+              raise SystemExit("expected one load-plan call; refusing to patch")
+          replacement = """        int id = susfs_load_plan[i].id;
+
+                  if (id == SUSFS_L_CREATE_GATE || id == SUSFS_L_OPATH ||
+                      id == SUSFS_L_KSTAT) {
+                      pr_warn("susfs_guard_lkm: diagnostic build: skipping %s; syscall-table hooks disabled\\n",
+                              susfs_layers[id].name);
+                      continue;
+                  }
+                  ret = susfs_load_layer(id, susfs_load_plan[i].fatal);"""
+          source = source.replace(call, replacement, 1)
+          path.write_text(source)
+          PY
+          grep -q 'diag-no-systable' susfs-src/kernel/susfs_main.c
+          grep -q 'skipping %s; syscall-table hooks disabled' susfs-src/kernel/susfs_main.c
+          echo "diagnostic source patch applied: create_gate, opath and kstat skipped"
 
       - name: Build susfs_guard_lkm.ko
         run: |
