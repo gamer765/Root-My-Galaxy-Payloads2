@@ -457,6 +457,7 @@ jobs:
           CONFIG_KSU_SAMSUNG_KDP=y \
           CONFIG_KSU_SAMSUNG_RKP=y \
           CONFIG_KSU_SAMSUNG_DEFEX=y \
+          CONFIG_KSU_SAMSUNG_NO_PATCH_TEXT=y \
           CC=clang make -j"$(nproc)" 2>&1 | tee /tmp/kbuild.log || {
             echo "::error::the merged module does not compile yet - this is the first attempt, and the log above names what clashes"
             exit 1
