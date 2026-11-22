@@ -125,7 +125,7 @@ static bool susfs_guard_enter(void)
 
 	if (xa_load(&susfs_probe_guard, (unsigned long)current))
 		return false;
-	old = xa_store(&susfs_probe_guard, (unsigned long)current, current, GFP_KERNEL);
+	old = xa_store(&susfs_probe_guard, (unsigned long)current, current, GFP_ATOMIC);
 	return !IS_ERR(old);
 }
 
