@@ -270,6 +270,9 @@ jobs:
             exit 1
           }
           echo "control nodes: expose_proc defaults to false" 
+          sed -i '/"sus_mount"/d' susfs-src/kernel/susfs_main.c
+          ! grep -q '"sus_mount"' susfs-src/kernel/susfs_main.c || {
+            echo "::error::sus_mount layer was not removed from susfs_main.c"; exit 1; }
           sed -i 's/return stop_machine(ksu_patch_text_cb, &info, cpu_online_mask);/(void)ksu_patch_text_cb; (void)info; return -EOPNOTSUPP;/' susfs-src/kernel/patch_memory.c
           grep -q 'return -EOPNOTSUPP;' susfs-src/kernel/patch_memory.c || {
             echo "::error::patch_memory.c no-patch-text guard did not apply"; exit 1; }
