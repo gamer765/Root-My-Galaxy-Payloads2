@@ -270,7 +270,7 @@ jobs:
             exit 1
           }
           echo "control nodes: expose_proc defaults to false" 
-         python3 tools/patch_sus_mount_kdp_ns.py susfs-src/kernel/sus_mount.c
+          python3 tools/patch_sus_mount_kdp_ns.py susfs-src/kernel/sus_mount.c
           sed -i 's/return stop_machine(ksu_patch_text_cb, &info, cpu_online_mask);/(void)ksu_patch_text_cb; (void)info; return -EOPNOTSUPP;/' susfs-src/kernel/patch_memory.c
           grep -q 'return -EOPNOTSUPP;' susfs-src/kernel/patch_memory.c || {
             echo "::error::patch_memory.c no-patch-text guard did not apply"; exit 1; }
