@@ -269,7 +269,10 @@ jobs:
             echo "::error::the expose_proc default did not change in the samsung variant"
             exit 1
           }
-          echo "control nodes: expose_proc defaults to false"
+          echo "control nodes: expose_proc defaults to false" 
+          sed -i 's/return stop_machine(ksu_patch_text_cb, &info, cpu_online_mask);/(void)ksu_patch_text_cb; (void)info; return -EOPNOTSUPP;/' susfs-src/kernel/patch_memory.c
+          grep -q 'return -EOPNOTSUPP;' susfs-src/kernel/patch_memory.c || {
+            echo "::error::patch_memory.c no-patch-text guard did not apply"; exit 1; }
           # The stat family and the dirent rewrite, from kretprobes on the syscall entries: upstream's own
           # post-processing, no table entry touched.  This variant is the one built for kernels that
           # refuse the table write, so on those the overlay is the only thing that makes these two
