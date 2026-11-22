@@ -106,7 +106,7 @@ env:
   # traceable to the revision it came from even though the ref moves. And the guard below - the overlay
   # check - is what keeps a moving upstream from failing silently.
   SUSFS_REPO: inforcqb/susfs4ksu-lkm
-  SUSFS_REFS: '{"stable":"main","preview":"dev","legacy":"legacy","samsung":"main"}'
+  SUSFS_REFS: '{"stable":"main","preview":"dev","legacy":"legacy","samsung":"ba5c6d00977719f43cc827d362374a192c0e5c1a"}'
   # The release string each variant's modules answer with, checked against `kernel/susfs.h` before the
   # build and against the binary after it. Null for the legacy line, which carries none: an entry that
   # named a release its binary cannot print would be a claim no reader could check.
