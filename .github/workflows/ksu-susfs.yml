@@ -268,9 +268,7 @@ jobs:
             exit 1
           }
           echo "control nodes: expose_proc defaults to false"
-          sed -i '/"sus_mount"/d' "$file"
-          ! grep -q '"sus_mount"' "$file" || {
-            echo "::error::sus_mount layer was not removed from $file"; exit 1; }
+         python3 tools/patch_sus_mount_kdp_ns.py KernelSU/kernel/susfs/sus_mount.c
       - name: The stat family and the dirent rewrite, without a table entry
         run: |
           # Upstream reaches both from a sys_call_table wrapper installed with ksu_patch_text. This
